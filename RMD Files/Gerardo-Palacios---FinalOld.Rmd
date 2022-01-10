@@ -1,0 +1,689 @@
+---
+title             : "Summary of Individual Analysis"
+output            : pdf_document
+fontsize          : 11pt
+always_allow_html : true
+header-includes:
+  - \usepackage{endfloat}    
+  - \usepackage{setspace}\doublespacing
+  - \usepackage{lineno}
+  - \usepackage{lscape}
+  - \usepackage{lipsum}
+  - \usepackage{float}
+  - \usepackage{setspace}
+  - \usepackage{booktabs}
+  - \usepackage{graphicx}
+  - \usepackage{multicol}
+  - \usepackage[backend=biber]{biblatex}
+  - \addbibresource{r-references.bib}
+  - \usepackage{afterpage}
+  - \newcommand{\blandscape}{\begin{landscape}}
+  - \newcommand{\elandscape}{\end{landscape}}
+editor_options: 
+  chunk_output_type: console
+---
+\singlespacing
+```{r myFunctions, include = F}
+source("C:/Users/Gerardo/OneDrive/DePaul/Advanced Data Anlaysis/Functions/SummaryFunctions.R")
+set.seed(123)
+```
+```{r Data download and Organization,include=F}
+
+setwd('C:/Users/Gerardo/OneDrive/DePaul/Advanced Data Anlaysis/Group Project/')   # Set working folder
+coffee  <- read_excel("LesData.xlsx",sheet = "upload")                             # read Coffee file 
+data <- coffee                                                                    # Store data frame 'Coffee' to data
+Predictors <- list()
+
+data$gradeDate <- as.Date(data$gradeDate)
+data$expirDate <- as.Date(data$expirDate)
+data$Bag_Weight <- data$weight/data$bagCount
+
+data <- data %>% mutate_if(is.character,as.factor)                                # Convert charecter columns
+
+# data <- data %>% mutate_if(is.numeric,funs(as.numeric(scale(.))))
+                                                                                 # to factors with levels
+data <-  na.omit(data)                                                            # Remove NAs
+
+run = TRUE
+
+```
+```{r formula,include=F,echo=F }
+response <- "cupperPts"
+
+Predictors[[1]] <- c(
+"species",
+"country",
+"region",
+"bagCount",
+"weight",
+"harvestYr",
+"gradeDate",
+"variety",
+"process",
+"aroma",
+"flavor",
+"aftertaste",
+"acidity",
+"body",
+"balance",
+"uniformity",
+"cleanCup",
+"sweetness",
+# "cupperPts",
+# "ttlCupPts",
+"moisture",
+"oneDefect",
+"quakers",
+"color",
+"twoDefect",
+"expirDate",
+"certBody",
+"avgAltitude"
+# "Bag_Weight"
+# "RC1",
+# "RC2",
+# "RC3",
+# "RC4",
+# "AltRC1",
+# "AltRC3",
+# "AltRC2",
+# "AltRC4",
+# "AltRC5"
+)
+
+```
+```{r iteration1 model building,include=F,echo=F }
+
+if (run==TRUE) {
+
+iteration1 <- list()
+set.seed(123)
+response = response
+predictors = Predictors[[1]]
+
+df1 = data[,c(response,predictors)]
+
+folder = "All Predictors - Les Data"
+
+iteration1[[1]] <- interation(
+  df = df1,
+  describe = "This is including all the predictors, with the exception of Altitude Low | High , Total Cupper Points and Latitude and Longitude. As discussed with the group, the coordinates were not accurate and may messy the results. Total number of observations is 956. ",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration1[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration1[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+
+write.table(iteration1[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+
+}
+```
+```{r formula2,include=F,echo=F }
+Predictors[[2]] <- c(
+"species",
+# "country",
+# "region",
+# "bagCount",
+# "weight",
+"harvestYr",
+# "gradeDate",
+# "variety",
+"process",
+"aroma",
+"flavor",
+"aftertaste",
+"acidity",
+"body",
+"balance",
+"uniformity",
+"cleanCup",
+"sweetness",
+# "cupperPts",
+# "ttlCupPts",
+"moisture",
+"oneDefect",
+"quakers",
+"color",
+"twoDefect",
+# "expirDate",
+# "certBody",
+"Bag_Weight",
+"avgAltitude"
+# "RC1",
+# "RC2",
+# "RC3",
+# "RC4",
+# "AltRC1",
+# "AltRC3",
+# "AltRC2",
+# "AltRC4",
+# "AltRC5"
+)
+
+```
+```{r iteration2 model building,include=F,echo=F }
+if (run==TRUE) {
+iteration2 <- list()
+response = response
+predictors = Predictors[[2]]
+
+set.seed(123)
+df1 <- data
+res <- iteration1[[1]]$Regularization$lambda.1se$Ridge[[1]]$`Standardized Residuals`
+
+attributes(res)
+attr(res,"dim") <- NULL
+attr(res,"dimnames") <- NULL
+attr(res,"scaled:center") <- NULL
+attr(res,"scaled:scale") <- NULL
+
+df1$res <- res
+
+df1 <- df1[-which(df1$res <= -3.5),]
+df1 <- df1[-which(df1$res >= 3.5),]
+
+df1 = df1[,c(response,predictors)]
+df1$moisture <- log(df1$moisture+1)
+df1$avgAltitude <- df1$avgAltitude/1000
+df1$harvestYr <- df1$harvestYr - 2000
+
+folder = "Clear 1 - Les Data"
+
+iteration2[[1]] <- interation(
+  df = df1,
+  describe = "Using the data from the previous iteration. Lambda 1Se regularization performed best using a training and sample dataset of 80/20. The best RMSE was using elasticNet at alpha = .05. THe RMSE results were not that different between them. Thus, I decided to use Ridge regression as it does not exclude any variables.  Ridge regression showed huge outliers when compared to the standardized residuzals.  In this iteration, I decided to remove those extreme outliers.  8 Observations were seen to be over and under -3.5 standard deviations of the standardized residuals. The final number of observations in this iteration is 948. In addition, I also removed the variables that contained too many factor levels. Those were variety, region, country and certBody. These variables had too many levels without enough obervations within each level.  Also, I removed the data variables because the date frames did not have a consistent enough time frames to be useable. In this iteration, I also performed 3 transformations. I logged Moisture, I reduced avgAltitude by a factor of 1000, and I subtracted 2000 from the harvest year (that way, the data would only reflect the decade it was harvest, 2014 = 14) ",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration2[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration2[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+write.table(iteration2[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+
+}
+
+```
+```{r formula3,include=F,echo=F }
+Predictors[[3]] <- c(
+# "species",
+# "country",
+# "region",
+# "bagCount",
+# "weight",
+# "harvestYr",
+# "gradeDate",
+# "variety",
+# "process",
+# "aroma",
+"flavor",
+"aftertaste",
+"acidity",
+"body",
+"balance",
+# "uniformity",
+# "cleanCup",
+# "sweetness",
+# "cupperPts",
+# "ttlCupPts",
+# "moisture",
+# "oneDefect",
+# "quakers",
+ # "color",
+# "twoDefect",
+# "expirDate",
+# "certBody",
+# "Bag_Weight",
+"avgAltitude"
+# "RC1",
+# "RC2",
+# "RC3",
+# "RC4",
+# "AltRC1",
+# "AltRC3",
+# "AltRC2",
+# "AltRC4",
+# "AltRC5"
+)
+
+```
+```{r iteration3 model building,include=F,echo=F }
+if (run==TRUE) {
+iteration3 <- list()
+set.seed(123)
+df1 <- data
+response = response
+predictors = Predictors[[3]]
+
+
+res <- iteration1[[1]]$Regularization$lambda.1se$Best[[1]]$`Standardized Residuals`
+res2 <- iteration2[[1]]$Regularization$lambda.1se$Best[[1]]$`Standardized Residuals`
+
+attributes(res)
+attr(res,"dim") <- NULL
+attr(res,"dimnames") <- NULL
+attr(res,"scaled:center") <- NULL
+attr(res,"scaled:scale") <- NULL
+df1$res <- res
+
+df1r <- df1[which(df1$res <= -3.5),]
+
+df1 <- df1[-which(df1$res <= -3.5),]
+df1 <- df1[-which(df1$res >= 3.5),]
+
+
+
+df1 = df1[,c(response,predictors)]
+df1$avgAltitude <- df1$avgAltitude/1000
+
+attributes(res2)
+attr(res2,"dim") <- NULL
+attr(res2,"dimnames") <- NULL
+attr(res2,"scaled:center") <- NULL
+attr(res2,"scaled:scale") <- NULL
+df1$res2 <- res2
+
+df2r <- df1[-which(df1$res2 >= -3.5),]
+df2r <- df1[-which(df1$res2 <= 3.5),]
+
+df1 <- df1[-which(df1$res2 <= -3.5),]
+df1 <- df1[-which(df1$res2 >= 3.5),]
+
+
+folder = "Clear 2 - Les Data"
+
+iteration3[[1]] <- interation(
+  df = df1,
+  describe = "After looking at all the results from the iteration2. The variables seem to indicate that, at least with this dataset, all the categorical variables do not seem to provide much information. Ridge Regression  at 1Se performed best again when comparing the RMSE between the training and test set. Using those residuals, I removed an additional 7. These obsevations may be heavily influencing the results of the model. The final number of observations in this iteration is 941. (less 15 from the original 956) ",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration3[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration3[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+write.table(iteration3[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+}
+
+```
+```{r formula4,include=F,echo=F }
+Predictors[[4]] <- c(
+# "species",
+# "country",
+# "region",
+# "bagCount",
+# "weight",
+# "harvestYr",
+# "gradeDate",
+# "variety",
+# "process",
+# "aroma",
+# "flavor",
+# "aftertaste",
+# "acidity",
+# "body",
+# "balance",
+# "uniformity",
+# "cleanCup",
+# "sweetness",
+# "cupperPts",
+# "ttlCupPts",
+# "moisture",
+# "oneDefect",
+# "quakers",
+# "color",
+# "twoDefect",
+# "expirDate",
+# "certBody",
+# "avgAltitude"
+"RC1",
+"RC2",
+"RC3",
+"RC4"
+# "AltRC1",
+# "AltRC3",
+# "AltRC2",
+# "AltRC4",
+# "AltRC5"
+)
+```
+```{r iteration4 model building,include=F,echo=F }
+if (run==TRUE) {
+iteration4 <- list()
+set.seed(123)
+response = response
+predictors = Predictors[[4]]
+
+df1 = data[,c(response,predictors)]
+
+folder = "PCA Scores RC1 to RC4 - Les Data"
+
+iteration4[[1]] <- interation(
+  df = df1,
+  describe = "This is using the Scores from the data RC1 - RC4. Total number of observations is 956. ",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration4[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration4[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+
+write.table(iteration4[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+
+}
+
+```
+```{r iteration5 model building,include=F,echo=F }
+if (run==TRUE) {
+iteration5 <- list()
+set.seed(123)
+response = response
+predictors = Predictors[[4]]
+
+df1 = data[,c(response,predictors)]
+res <- iteration4[[1]]$Regularization$lambda.1se$Ridge[1]$`Model Plots`$`Standardized Residuals`
+
+attributes(res)
+attr(res,"dim") <- NULL
+attr(res,"dimnames") <- NULL
+attr(res,"scaled:center") <- NULL
+attr(res,"scaled:scale") <- NULL
+df1$res <- res
+
+
+df1 <- df1[-which(df1$res <= -3.5),]
+df1 <- df1[-which(df1$res >= 3.5),]
+
+folder = "PCA Scores RC1 to RC4_Clear 1 - Les Data"
+
+iteration5[[1]] <- interation(
+  df = df1,
+  describe = "This is using the Scores from the data RC1 - RC4 less that extreme outliers that were found from the previous iteration. Total number of observations is 948. 8 Observations were removed.",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration5[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration5[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+
+write.table(iteration5[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+
+}
+
+```
+```{r iteration8 model building,include=F,echo=F }
+if (run==TRUE) {
+iteration8 <- list()
+set.seed(123)
+df1 <- data
+response = response
+predictors = Predictors[[4]]
+df1 = data[,c(response,predictors)]
+
+res <- iteration4[[1]]$Regularization$lambda.1se$Ridge[[1]]$`Standardized Residuals`
+res2 <- iteration5[[1]]$Regularization$lambda.1se$Ridge[[1]]$`Standardized Residuals`
+
+attributes(res)
+attr(res,"dim") <- NULL
+attr(res,"dimnames") <- NULL
+attr(res,"scaled:center") <- NULL
+attr(res,"scaled:scale") <- NULL
+df1$res <- res
+
+
+df1 <- df1[-which(df1$res <= -3.5),]
+df1 <- df1[-which(df1$res >= 3.5),]
+
+attributes(res2)
+attr(res2,"dim") <- NULL
+attr(res2,"dimnames") <- NULL
+attr(res2,"scaled:center") <- NULL
+attr(res2,"scaled:scale") <- NULL
+df1$res2 <- res2
+
+
+df1 <- df1[-which(df1$res2 <= -3.5),]
+df1 <- df1[-which(df1$res2 >= 3.5),]
+
+
+
+folder = "PCA Scores RC1 to RC4_Clear 2 - Les Data"
+
+iteration8[[1]] <- interation(
+  df = df1,
+  describe = "This is removing further outliers from the previous iteration. 940 total observations.",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration8[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration8[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+write.table(iteration8[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+}
+```
+```{r formula5,include=F,echo=F }
+Predictors[[5]] <- c(
+# "species",
+# "country",
+# "region",
+# "bagCount",
+# "weight",
+# "harvestYr",
+# "gradeDate",
+# "variety",
+# "process",
+# "aroma",
+# "flavor",
+# "aftertaste",
+# "acidity",
+# "body",
+# "balance",
+# "uniformity",
+# "cleanCup",
+# "sweetness",
+# "cupperPts",
+# "ttlCupPts",
+# "moisture",
+# "oneDefect",
+# "quakers",
+# "color",
+# "twoDefect",
+# "expirDate",
+# "certBody",
+# "avgAltitude"
+# "RC1",
+# "RC2",
+# "RC3",
+# "RC4",
+"AltRC1",
+"AltRC3",
+"AltRC2",
+"AltRC4",
+"AltRC5"
+)
+```
+```{r iteration6 model building,include=F,echo=F }
+if (run==TRUE) {
+iteration6 <- list()
+set.seed(123)
+response = response
+predictors = Predictors[[5]]
+
+df1 = data[,c(response,predictors)]
+
+folder = "PCA Scores AltRC1 to AltRC5 - Les Data"
+
+iteration6[[1]] <- interation(
+  df = df1,
+  describe = "This is using the Scores from the data AltRC1 - AltRC5. Total number of observations is 956. ",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration6[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration6[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+
+write.table(iteration6[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+}
+
+```
+```{r iteration7 model building,include=F,echo=F }
+if (run==TRUE) {
+iteration7 <- list()
+set.seed(123)
+response = response
+predictors = Predictors[[5]]
+
+df1 = data[,c(response,predictors)]
+res <- iteration6[[1]]$Regularization$lambda.1se$Ridge[1]$`Model Plots`$`Standardized Residuals`
+
+attributes(res)
+attr(res,"dim") <- NULL
+attr(res,"dimnames") <- NULL
+attr(res,"scaled:center") <- NULL
+attr(res,"scaled:scale") <- NULL
+df1$res <- res
+
+
+df1 <- df1[-which(df1$res <= -3.5),]
+df1 <- df1[-which(df1$res >= 3.5),]
+
+folder = "PCA Scores AltRC1 to AltRC5 - Les Data_Clear 1 - Les Data"
+
+iteration7[[1]] <- interation(
+  df = df1,
+  describe = "This is using the Scores from the data RC1 - RC4 less that extreme outliers that were found from the previous iteration. Total number of observations is 948. 8 Observations were removed.",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration7[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration7[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+
+write.table(iteration7[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+
+}
+
+```
+```{r iteration9 model building,include=F,echo=F }
+if (run==TRUE) {
+iteration9 <- list()
+set.seed(123)
+df1 <- data
+response = response
+predictors = Predictors[[4]]
+df1 = data[,c(response,predictors)]
+
+res <- iteration6[[1]]$Regularization$lambda.1se$Ridge[[1]]$`Standardized Residuals`
+res2 <- iteration7[[1]]$Regularization$lambda.1se$Ridge[[1]]$`Standardized Residuals`
+
+attributes(res)
+attr(res,"dim") <- NULL
+attr(res,"dimnames") <- NULL
+attr(res,"scaled:center") <- NULL
+attr(res,"scaled:scale") <- NULL
+df1$res <- res
+
+
+df1 <- df1[-which(df1$res <= -3.5),]
+df1 <- df1[-which(df1$res >= 3.5),]
+
+attributes(res2)
+attr(res2,"dim") <- NULL
+attr(res2,"dimnames") <- NULL
+attr(res2,"scaled:center") <- NULL
+attr(res2,"scaled:scale") <- NULL
+df1$res2 <- res2
+
+
+df1 <- df1[-which(df1$res2 <= -3.5),]
+df1 <- df1[-which(df1$res2 >= 3.5),]
+
+
+
+folder = "PCA Scores AltRC1 to AltRC5 - Les Data_Clear 2 - Les Data"
+
+iteration8[[1]] <- interation(
+  df = df1,
+  describe = "This is removing further outliers from the previous iteration. 940 total observations.",
+  response = response,
+  predictors = predictors,
+  folder = "Models",
+  subfolder = folder)
+
+iteration9[[2]] <- SummaryCorrelations(df = df1,strong = 0.65,name = "O_r=0.65",z=0,folder = paste("Models/",folder,sep = ""),subfolder = "Correlations")
+iteration9[[3]] <- SummaryPlots(df1,folder = paste("Models/",folder,sep = ""),subfolder="Variables",response = response,predictors = predictors)
+
+write.table(iteration9[[1]]$Description, file = paste("Models/",folder, "/", "Description.txt", sep = ""))
+write.table(predictors, file = paste("Models/",folder, "/", "Variables.txt", sep = ""))
+}
+
+
+```
+
+# Summary of Individual Analysis
+
+Multivariate analysis has been an eye opening learning experience throughout the quarter. In fact, one of the most interesting aspects that has been an continuing learning theme is transforming a data set's weakness into strengths to extrapolate latent details in the data. A perfect example of this was learning to use PCA/CFA in combination with linear models in order to improve performance and gain further meaning. Our project is a great example of applying what I've learned about multivariate analysis. This project allowed me to combine multiple techniques that compliment each other. In addition, using PCA with modeling allowed me to have a better understanding how data points can relate to each other and finally being able to use geometric calculations to judge potential importance. As a result, my process can be broken down into three sections, initial analysis, individual analysis and comparisons. 
+
+## Initial Analysis
+
+The initial analysis involved merging and cleaning data, correlation visualizations and variable transformations. More cleaning was conducted by other members of the group while I performed transformations such as standardizing units (i.e. lbs to kg) and removing incomplete observations. After clean up, I created the correlation plots and stacked histogram visualizations on every variable showing the original, logged and squared root values in order to determining if any of the variables could be become more normal. Ultimately, none of the variables truly benefited from any of the transformations since many of the measurements were based on a predetermined scale. This meant that many of the variable transformations would not be appropriate if performed on the data set.   
+
+## Individual Analysis
+
+After the initial analysis we each conducted our own analysis on the data to compare methodologies (in terms of finding the best model). This involved PCA/CFA, OLS and regularization models. My modeling was based on sparser data set,  I omitted all the blanks at read, while Les had more robust set where she used 3rd party data to fill it any potential blanks in the data. This was done in order to compare the sets to see if the extrapolated missing values would be drastically different from the sparser data set For the first portion of the analysis I ran PCA in 2 different iterations. Each iteration involved comparing the results with its scaled|unscaled and rotated | rotated counterparts.
+
+1. No variables excluded
+
+    Unscaled PCA held the entire variability in PC1, This would create uninterpretable results. Fortunately, using scaled PCA allowed the variability to become more evenly spread out. More importantly, I was able to use the variance value of 1 as a breaking point for determining the number of components. 
+
+
+2. Excluding at CF = 0.90
+      
+    Using a correlation test with a confidence level of 90%, I was able to eliminate very high correlated variables. From the original 29 numerical variables  reduced to only 4 variables. 
+      
+As expected, using all the variables resulted in difficult interpretations. The scaled results, surprisingly are harder to interpret than that of the unscaled. 
+
+The regularization models were next. This was done in number of ways.  First, OLS models were created this includes step wise AIC for modeling and feature selection. Then, was conducting the regularization models. Using cross validation and randomly splitting the data into training and test sets (80/20) I was able to compare the different models and judge for over fitting. The regularization models and outputs were stored in tables using a sequence of alpha from 0 to 1 by increments of 0.05 (21 models) and subsequently comparing the results using both calculated lambdas (lambda.min and lambda 1SE). This meant a total of 42 models for each iteration. The root mean squared errors were then calculated and the model with the smallest diagnostic was then used for residual analysis. This same process was repeated only using the PCA scores that were calculated earlier.
+
+Residual analysis was conducted at 3 levels. At each level, a number of observations were removed that had calculated standardized residuals greater than 3.5.  A total of 15 influential outlines were found using this methodology and 16 influential outliers were found when using the PCA scores in regularization. Without repeating outputs, the 15 residuals were did not seem to have any similarities except that their actual cupper points were rated low relative to other observations that had similar scores. 
+
+## Comparisons
+
+Compared to Les's analysis there was not much difference in the models, ultimately deciding that using more observations was better since the 3rd party data did not seem to vary drastically. As a result, for the final report as well as the presentation we opted to use her PCA analysis coupled with my linear and regularization models. The results flowed very nicely together as the raw data and the PCA analysis complemented each others interpretation. For example, the first PCA component was composed of the same variables as my best linear model and regularization model using the raw data.  This is evidence of the significance and potential importance for predicting the variability in cupper points. 
+
+
+```{r example,include=T}
+
+tableGrob(df1r[,Predictors[[1]]])
+
+```
+## Final Thoughts
+
+I think the most important aspect that could be drawn from my contribution to the project would have to the residual analysis and visualizations. The models, when compared without removing the residuals outliers, had more than 10% less in calculated captured variance (R^2). Removing the outliers helped stabilize the model to reveal less inflated/deflated beta coefficients in both regularization and OLS.  
+
+
+

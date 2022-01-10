@@ -1,0 +1,2 @@
+"x"
+"1" "This is including all the predictors, with the exception of Altitude Low | High , Total Cupper Points and Latitude and Longitude. As discussed with the group, the coordinates were not accurate and may messy the results. Total number of observations is 956. "

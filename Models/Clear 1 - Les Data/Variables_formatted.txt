@@ -1,0 +1,2 @@
+"x"
+"1" " | species | harvestYr | process | aroma | flavor | aftertaste | acidity | body | balance | uniformity | cleanCup | sweetness | moisture | oneDefect | quakers | color | twoDefect | Bag_Weight | avgAltitude"

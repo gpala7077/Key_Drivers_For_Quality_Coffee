@@ -1,0 +1,293 @@
+---
+title             : "Key Drivers for Quality Coffee"
+shorttitle        : "A Multi-Variate Analysis"
+
+author: 
+  - name          : "Bosniack, Lesley"
+  - name          : "Bowen, Janet"
+  - name          : "Higgins, Thomas"
+  - name          : "Palacios, Gerardo"
+
+affiliation:
+  - id            : "1"
+    institution   : "DSC 424 - Advanced Data Analysis"
+  - id            : "2"
+    institution   : "DePaul University"
+
+keywords          : "Coffee"
+wordcount         : "X"
+
+bibliography      : ["r-references.bib"]
+
+floatsintext      : no
+figsintext        : yes
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+linenumbers       : no
+mask              : no
+draft             : no
+
+documentclass     : "apa6"
+classoption       : "man"
+output:
+  papaja::apa6_pdf:
+    citation_package: biblatex
+fontsize          : 12pt
+always_allow_html : true
+header-includes:
+  - \usepackage{endfloat}    
+  - \usepackage{setspace}\doublespacing
+  - \usepackage{lineno}
+  - \usepackage{lscape}
+  - \usepackage{lipsum}
+  - \usepackage{float}
+  - \usepackage{setspace}
+  - \usepackage{booktabs}
+  - \usepackage{graphicx}
+  - \usepackage{multicol}
+  - \usepackage[backend=biber]{biblatex}
+  - \addbibresource{r-references.bib}
+  - \usepackage{afterpage}
+  - \newcommand{\blandscape}{\begin{landscape}}
+  - \newcommand{\elandscape}{\end{landscape}}
+---
+```{r libraries, include = F}
+# output            : papaja::apa6_pdf
+# output            : word_document
+# output:
+#   papaja::apa6_pdf:
+#     citation_package: biblatex
+# 
+
+source("C:/Users/Gerardo/OneDrive/DePaul/Advanced Data Anlaysis/Functions/SummaryFunctions.R")
+source("C:/Users/Gerardo/OneDrive/DePaul/Advanced Data Anlaysis/Functions/WeatherFunctions.R")
+
+```
+```{r Data download and Organization,include=F}
+
+setwd('C:/Users/Gerardo/OneDrive/DePaul/Advanced Data Anlaysis/Group Project/')   # Set working folder
+coffee  <- read_excel("coffee.xlsx",sheet = "Upload")                             # read Coffee file 
+var_info <- read_excel("coffee.xlsx",sheet = "Variable_survey")                   # Read Variable Dictionary
+grp_info <- read_excel("coffee.xlsx",sheet = "Grouped")                           # Read Grouped Variables
+var_info[is.na(var_info)] <- ""                                                   # Transform N/A's as blankes
+data <- coffee                                                                    # Store data frame 'Coffee' to 'Data'
+
+data$WeatherAPIDate.Begin <- as.Date(data$WeatherAPIDate.Begin)
+data$WeatherAPIDate.End   <- as.Date(data$WeatherAPIDate.End)
+data$Grading.Date.Fixed   <- as.Date(data$Grading.Date.Fixed)
+data$Experation.Fixed     <- as.Date(data$Experation.Fixed)
+data$Weight_Bags          <- data$Weight * data$Number.of.Bags
+
+data <- data %>% mutate_if(is.character,as.factor)                                # Convert charecter columns
+                                                                                  # to factors with levels
+data <-  na.omit(data)                                                            # Remove NAs
+data <- data[which(data$Weight < 100),]
+data <- data[which(data$Altitude.Mean.Meters < 3000),]
+
+```
+```{r Data Summary Analysis, include=F}
+
+# plot1 <- SummaryPlots(inner_hourly)
+# plot2 <- SummaryPlots(inner_daily)
+# plot3 <- SummaryPlots(inner_cont)
+# # 
+ plots <- SummaryPlots(data)
+# # 
+# filename <- "Original"
+# 
+# orient = 'A4'
+# fName <- paste("./PDF/Plots/Categorical_",filename,".pdf")
+# pdf(fName,paper = orient ,pagecentre = T)                              # starts writing a 
+# plots[1]                                                                          
+# dev.off()
+# fName <- paste("./PDF/Plots/Numerical_",filename,".pdf")
+# pdf(fName,paper = orient ,pagecentre = T)                              
+# plots[2]                                                                          
+# dev.off()
+# 
+corPlots1 <- SummaryCorrelations(data,0.65,"O_r=0.65",z=0)
+corPlots2 <- SummaryCorrelations(data,0.75,"O_r=0.75",z=0)
+corPlots3 <- SummaryCorrelations(data,0.90,"O_r=0.90",z=0)
+
+# corPlots4 <- SummaryCorrelations(inner_hourly,0.65,"hourly_.65",z=0)
+# corPlots5 <- SummaryCorrelations(inner_hourly,0.75,"hourly_.75",z=0)
+# corPlots6 <- SummaryCorrelations(inner_hourly,0.90,"hourly_.90",z=0)
+#
+# corPlots7 <- SummaryCorrelations(inner_daily,0.65,"currently_.65",z=0)
+# corPlots8 <- SummaryCorrelations(inner_daily,0.75,"currently_.75",z=0)
+# corPlots9 <- SummaryCorrelations(inner_daily,0.90,"currently_.90",z=0)
+#
+# corPlots10 <- SummaryCorrelations(inner_cont,0.65,"daily_.65",z=0)
+# corPlots11 <- SummaryCorrelations(inner_cont,0.75,"daily_.75",z=0)
+# corPlots12 <- SummaryCorrelations(inner_cont,0.90,"daily_.90",z=0)
+
+``` 
+\singlespacing
+# Domain Knowledge and Data Gathering
+According to the Coffee Quality Institute (CQI), coffee quality is one of the most important variables that influence a coffee’s value. One way that coffee quality can be measured is through a blind tasting, also known as cupping, by certified coffee analysts using the SCAA Cupping Protocol. This protocol gives guidelines for evaluation ranging from necessary equipment to preparation of the coffee. Ratings are given on a scale of 6-point scale in various categories such as aroma, flavor, aftertaste, acidity, body, balance, sweetness, clarity, consistency, and overall impression. The final grade sums the ratings against a total of 100 points, similar to the scale that exists for wine. Anything rated over 80 points is considered a premium coffee. This method of evaluation provides a consistent and objective methodology for capturing some of the beans’ sensory aspects and for evaluating quality.
+&nbsp;
+
+The CQI’s goal is to improve the quality of coffee and the lives of coffee producers. As a result, the CQI has provided opportunities to individuals to become certified as coffee graders, analysts among other experts to support and educate current and future generations of coffee growers. The data-set selected and described below was compiled by the CQI from samples submitted for evaluation. It provides a profile of coffee growers and coffee beans and the quality of the coffee grown, as measured according to the SCAA categories. Analysis of this data-set could identify valuable findings that would strengthen growing practices and knowledge which may favorably affect coffee producers
+. The final data-set was gathered from multiple sources and combined into a single data-set. The parent data was gathered from *https://www.kaggle.com/volpatto/coffee-quality-database-from-cqi* representing 1339 observations and 43 variables from the CQI database of coffee ratings from 2010 through 2018. Each observation represents a coffee grower and 43 variables. The relevant weather and geographical data associated with the growing regions of the parent data-set was gathered using two APIs to capture their potential impact on coffee quality. Isolating this data for the coffee growing season of each region is necessary for the weather data to be useful. Because growing season was not easily identified, data on harvest season was collected by country and if available, by region from a number of sources. Harvest time frame will be utilized to back into growing season.
+
+## API Methodologies 
+### Google Place API
+
+The Google Places API is a service used to gather data from any given location. The available request, “Place Search” , was used to determine the Latitude and Longitude for each of the given countries regions and countries. A custom user function was created using Excel VBA to build an http request based on the name of the given region in the Kaggle data-set. The GET request returns a JSON file which was then parsed to focus on the central coordinates of any given region in the data-set.
+
+### DarkSkies API
+The Dark sky API is a comprehensive weather API that allows users to look up weather data from anywhere in the world. The API is very simple to use and only requires 2 or 3 parameters (Lat|Long and/or Time).  The weather data was gathered  based on the estimated harvest season months for each of the regions. The return is beginning of month weather measurements for that particular region and time. The readings associated then is calculated to determine an average measure for the harvest season. 
+  
+## Data Pre-processing 
+The data gathered from the API's came in a clean format which did not need further processing. The parent data-set, however, required the following steps in order to be correctly processed by R.
+
+  * The numerical variable 'Weight', came in a 'String' format containing mixed unit and measurements for coffee (kg or lbs).The variable was then separated so that all numerical units were separated and converted under a unified unit (kg).
+  
+  * The numerical variable 'Harvest Year', came in a 'String' format containing mixed start | end harvest years.  To standardize the column, only the end Harvest year was taken.
+  
+  * The numerical variable 'Grading Date' and 'Expiration' came in a 'String' format containing the date that the coffee was graded or expired.  In order for R to correctly process that variable it needed to be converted into a time variable. The year, day and month for each row was extracted to build the correct date value in order for R to interpret. 
+  
+  * Data needed to be reduced to represent only complete data.
+  
+  * Values of each variable were reviewed.  Data adjustments were identified for potentially erroneous values.
+
+## Variable Survey
+The main purpose with this data-set is to find the *key drivers* for well rated coffee or quality coffee. The predictors generally fall under 5 categories that portray different characteristics for each of the coffee producers. 
+
+```{r Grouped, include=T}
+kable(grp_info[,c(1,3)],booktabs = T) %>% column_spec(1, width = "1in")  %>% column_spec(2, width = "5in")
+
+```
+
+
+&nbsp;
+
+### Notable Distributions and Transformations
+The majority of the variables were normally distributed with the exception of a few that may need special consideration when running regressions or conducting PCA analysis. 6 variables were shown to have non-normal distributions. 
+
+1. Number of Bags
+```{r Bags, fig.height=3, fig.fullwidth=T}
+plot1 <- plots[[2]]
+plot1[[3]]
+```
+The number of bags has a highly skewed-right bi-modal distribution at zero and 250 bags. A square root transformation is shown to improve the normality of the distribution.  
+
+2. Weight and Num of Bags x Weight
+```{r Weight,fig.height=4, fig.fullwidth=T}
+
+plot2 <- plots[[2]]
+plot_grid(plot2[[4]],plot2[[25]],align = "h",nrow = 1,ncol = 2,
+                     rel_heights = c(1.5,1.5,1.5))
+```
+Both variables are highly skewed-right with most of the observations generally are generally light. A logarithmic transformation is shown to have the most improvement. 
+
+3. Species
+``` {r Species,fig.height=3, fig.fullwidth=T}
+plot3 <- plots[[1]]
+plot3[[1]]
+```
+Species is highly disproportionate with most of the observations falling under *Arabica*. Only 33 observations from the final data-set are categorized as *Robusta*. 
+
+4. Color
+``` {r Color, fig.height=3, fig.fullwidth=T}
+plot4 <- plots[[1]]
+plot4[7]
+```
+The color of the coffee largely falls into a single category making it a highly uneven distribution between the rest of the categories. 638 observations fell under 'Green' while the remaining 167 observations were spread evenly between 3 categories. 
+
+5. Category One and Two Defects
+```{r Category,fig.height=3, fig.fullwidth=T}
+plot5 <- plots[[2]]
+plot_grid(plot5[[19]],plot5[[21]],align = "h",nrow = 1,ncol = 2,
+                     rel_heights = c(1.5,1.5,1.5))
+```
+Category one and two defects are strongly skewed to the right with the majority of the values at or near 0. This distribution is anticipated as we would expect most coffees would be devoid of any defects. Both the logarithmic and square root transformations improve the distributions by reducing skew but the improvement is only nominal. 
+
+6. Altitudes (Low, High and Mean)
+```{r Altitudes,fig.height=5, fig.fullwidth=T}
+plot6 <- plots[[2]]
+plot_grid(plot6[[22]],plot6[[23]],plot6[[24]],align = "h",nrow = 1,ncol = 3,
+                     rel_heights = c(1.5,1.5,1.5))
+```
+All three altitude variables were strongly skewed right. A logarithmic transformation was shown to have the biggest improvement on the distribution. It is worth noting that the most of the "High" and "Low" values are identical. With the 'Mean' variable depicting the most variance between the three. Going forward the mean will be the sole variable to use relating to the altitude.
+&nbsp;
+
+### Notable Correlations
+Correlations were reviewed across all variables. Below are initial plots against all variables as well as whose correlations of above 0.65 or below -0.65. All of these variables exhibit a positive correlations. It can be noted that altitude variables all show perfect multi-collinearity suggesting repetitive data. This supports our earlier suggestion on the altitude variables. The Specialty Coffee Association of America (“SCAA”) quality scores are all positively correlated with the lowest correlation of 0.51 between aroma and body. This suggests that if quality is high on some criteria, it is likely that quality will be high for other criteria and for the overall quality score, Total.Cup.Points. Similarly, where low quality scores exist on some criteria, one would expect low quality scores on other criteria and on the combined score. Defects 1 and 2 and moisture levels exhibit mild negative correlations to the SCAA scores. Altitude does not appear to be correlated with SCAA scores. 
+
+
+
+```{r coffee corr, fig.height=5, fig.fullwidth=T }
+
+v1 <- unlist(corPlots1[1])
+v2 <- unlist(corPlots2[1])
+v3 <- unlist(corPlots3[1])
+
+p1 <- ggdraw() + draw_image(v1[2], scale = 1.1)
+p2 <- ggdraw() + draw_image(v1[3], scale = 1.1)
+p3 <- ggdraw() + draw_image(v2[3], scale = 1.1)
+p4 <- ggdraw() + draw_image(v3[3], scale = 1.1)
+
+plot_grid(p1,p2,p3,p4,align = "h",nrow = 2,ncol = 2,
+                     rel_heights = c(3,3,3,3))
+
+```
+
+The weather data-set consist of three categories of measurements. Hourly, daily and currently. The most complete section of the data consisted of the 'daily' measurements This consisted of 39 additional variables related to the geographical location of any given coffee producer. Nearly all of the variables are correlated with each other while a few are negatively correlated. The variables humidity, pressure and visibility all tend to decrease in value while all other variables increase. The correlation groupings of at least 0.75 display a similar pattern. The strongest group of correlated variables are all positive with only one,(pressure) that is negative. From the graph, you can see two groupings of strongly correlated variables, the moon phases and the daily temperatures, and the other daily apparent temperatures and daily pressure. 
+
+
+```{r weather corr, fig.height=4, fig.fullwidth=T }
+
+v1 <- unlist(corPlots10[1])
+v2 <- unlist(corPlots11[1])
+v3 <- unlist(corPlots12[1])
+
+p3 <- ggdraw() + draw_image(v2[3], scale = 1)
+p4 <- ggdraw() + draw_image(v3[3], scale = 1)
+
+plot_grid(p3,p4,align = "h",nrow = 1,ncol = 2,
+                     rel_heights = c(4,4))
+
+```
+
+# Tables
+\afterpage{
+\blandscape
+\begin{center}
+```{r vars1,include=T}
+kable(var_info[c(1:15),c(1:4)],booktabs = T) %>% column_spec(c(1), width = "1.5in") %>% column_spec(c(2), width = "1in") %>% column_spec(c(3,4), width = "3.1in")
+
+kable(var_info[c(16:30),c(1:4)],booktabs = T) %>% column_spec(c(1), width = "1.5in") %>% column_spec(c(2), width = "1in") %>% column_spec(c(3,4), width = "3.1in")
+
+kable(var_info[c(31:45),c(1:4)],booktabs = T) %>% column_spec(c(1), width = "1.5in") %>% column_spec(c(2), width = "1in") %>% column_spec(c(3,4), width = "3.1in")
+
+kable(var_info[c(31:45),c(1:4)],booktabs = T) %>% column_spec(c(1), width = "1.3in") %>% column_spec(c(2), width = "1in") %>% column_spec(c(3,4), width = "3.1in")
+
+```
+\end{center}
+\elandscape}
+
+\afterpage{
+\blandscape
+\begin{center}
+```{r table1,include=T}
+ summaryTable(data,c(2:10))
+ summaryTable(data,c(11:19))
+ summaryTable(data,c(20:22,25:26))
+```
+\end{center} 
+\elandscape 
+}
+
+\newpage
+```{r create_r-references,include=TRUE}
+re <- r_refs(file = "r-references.bib")
+
+```
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+<div id="refs" custom-style="Bibliography"></div>
+\endgroup

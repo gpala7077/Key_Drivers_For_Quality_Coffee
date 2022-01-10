@@ -1,0 +1,2 @@
+"x"
+"1" "After looking at all the results from the iteration2. The variables seem to indicate that, at least with this dataset, all the categorical variables do not seem to provide much information. Ridge Regression  at 1Se performed best again when comparing the RMSE between the training and test set. Using those residuals, I removed an additional 7. These obsevations may be heavily influencing the results of the model. The final number of observations in this iteration is 941. (less 15 from the original 956) "

@@ -1,0 +1,2 @@
+"x"
+"1" "This is using the Scores from the data RC1 - RC4 less that extreme outliers that were found from the previous iteration. Total number of observations is 948. 8 Observations were removed."

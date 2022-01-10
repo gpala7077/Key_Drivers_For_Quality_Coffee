@@ -1,0 +1,395 @@
+---
+title             : "Milestone 4 - Gerardo Palacios"
+output            : pdf_document
+fontsize          : 11pt
+always_allow_html : true
+header-includes:
+  - \usepackage{endfloat}    
+  - \usepackage{setspace}\doublespacing
+  - \usepackage{lineno}
+  - \usepackage{lscape}
+  - \usepackage{lipsum}
+  - \usepackage{float}
+  - \usepackage{setspace}
+  - \usepackage{booktabs}
+  - \usepackage{graphicx}
+  - \usepackage{multicol}
+  - \usepackage[backend=biber]{biblatex}
+  - \addbibresource{r-references.bib}
+  - \usepackage{afterpage}
+  - \newcommand{\blandscape}{\begin{landscape}}
+  - \newcommand{\elandscape}{\end{landscape}}
+editor_options: 
+  chunk_output_type: console
+---
+\singlespacing
+```{r myFunctions, include = F}
+source("C:/Users/G_MAN/OneDrive/Functions/SummaryFunctions.R")
+set.seed(123)
+```
+
+# Summary
+To reiterate the group discussions, we decided on two main approaches, PCA/CFA and regularized regression analysis in order to predict cupper points and the probability of the type of processing the coffee beans received. Part of the main issues on interpreting the predictors is that of dimensionality, differences in predictor values, and high multicollinearity. In order to extrapolate latent factors and to produce a sparser model, my portion of the analysis is to conduct PCA and ElasticNet regression. These two, in addition to creating associated plots for every model iteration, would assist into a holistic analysis when the group brings together all the avenues of analysis. 
+
+In earlier discussions, I explored the possibility of combining data from two different datasets, that of a publicly available weather API database in order to link for geographical variables into the dataset based on the associated regions. However, the problem with that approach was that of accuracy and consistency.  Many of the regions with the dataset were using charecters that were unreadable. This is due to it not having a latin based name (i.e Asian regions with foreign charecters). Much of the data clean up revolved around matching these two sets, without much success. As a result, we decided to excluded all of the weather data. In this milestone, I chose a simpler data clean up, which only involved removing rows that did not have complete data, as well as rows that held data that did not make logical sense for producing beans (i.e Coffee beans produced at altitudes over 3,000 or bags of coffee under 100 lbs). Officially, subsetting the coffee dataset from an original 1,343 observations and 36 elements to 875 observations with complete data. 
+
+```{r Data download and Organization,include=F}
+
+setwd('C:/Users/Gerardo/OneDrive/DePaul/Advanced Data Anlaysis/Group Project/')   # Set working folder
+coffee  <- read_excel("coffee.xlsx",sheet = "Upload")                             # read Coffee file 
+data <- coffee                                                                    # Store data frame 'Coffee' to data
+Correlations <- list()
+PCA_Results <- list()
+Predictors <- list()
+model_iterations <- list()
+
+data$WeatherAPIDate.Begin <- as.Date(data$WeatherAPIDate.Begin)
+data$WeatherAPIDate.End   <- as.Date(data$WeatherAPIDate.End)
+data$Grading.Date.Fixed   <- as.Date(data$Grading.Date.Fixed)
+data$Experation.Fixed     <- as.Date(data$Experation.Fixed)
+data$Weight_Bags          <- data$Weight * data$Number.of.Bags
+
+data <- data %>% mutate_if(is.character,as.factor)                                # Convert charecter columns
+                                                                                  # to factors with levels
+data <-  na.omit(data)                                                            # Remove NAs
+data <- data[which(data$Weight < 100),]
+data <- data[which(data$Altitude.Mean.Meters < 3000),]
+
+run = TRUE
+
+```
+```{r Data Summary Analysis, include=F}
+if (run==TRUE) {
+ plots <- SummaryPlots(data,folder = "Plots",subfolder="Variables")
+}
+``` 
+```{r Correlations,include=F }
+
+if (run==TRUE) {
+
+Correlations[[1]] <- SummaryCorrelations(data,0.65,"O_r=0.65",z=0,folder = "Plots",subfolder = "Correlations")
+Correlations[[2]] <- SummaryCorrelations(data,0.75,"O_r=0.75",z=0,folder = "Plots",subfolder = "Correlations")
+Correlations[[3]] <- SummaryCorrelations(data,0.90,"O_r=0.90",z=0,folder = "Plots",subfolder = "Correlations")
+
+data <- data[,-c(27,34,35)] # Remove Total Cupper Points, Altitude High and Low
+
+Correlations[[4]] <- SummaryCorrelations(data,0.65,"O_r=0.65",z=0,folder = "Plots",subfolder = "Correlations2")
+Correlations[[5]] <- SummaryCorrelations(data,0.75,"O_r=0.75",z=0,folder = "Plots",subfolder = "Correlations2")
+Correlations[[6]] <- SummaryCorrelations(data,0.80,"O_r=0.80",z=0,folder = "Plots",subfolder = "Correlations2")
+
+names(Correlations) <- c(
+  "r = 0.65 - Everything",
+  "r = 0.75 - Everything",
+  "r = 0.90 - Everything",
+  "r = 0.65 - clean",
+  "r = 0.75 - clean",
+  "r = 0.80 - clean"
+)
+}
+```
+
+```{r formula,include=F,echo=F }
+response <- "Cupper.Points"
+
+Predictors[[1]] <- c(
+   "Species",              
+   "Country",              
+   # "Latitude",                # This is not as accurate as hoped. Removed due to data inaccuracies
+   # "Longitude",           
+   "Region",               
+   "Number.of.Bags",       
+   "Weight",               
+   "Harvest.Year",        
+   # "WeatherAPIDate.Begin",   # Since this was part of the weather data, It is excluded as was an estimate 
+   # "WeatherAPIDate.End",     # Since this was part of the weather data, It is excluded as was an estimate 
+   "Harvest.Month.Begin",  
+   "Harvest.End",         
+   "Harvest.Length",       
+   "Grading.Date.Fixed",   
+   "Variety",              
+   "Processing.Method",   
+   "Aroma",                
+   "Flavor",               
+   "Aftertaste" ,          
+   "Acidity",             
+   "Body",                 
+   "Balance",              
+   "Uniformity",           
+   "Clean.Cup",           
+   "Sweetness" ,           
+#   "Cupper.Points",                        # This is the response variables
+#   "Total.Cup.Points",                     # Since this variable contains the response variable it is removed
+   "Moisture" ,           
+   "Category.One.Defects", 
+   "Quakers",              
+   "Color",                
+   "Category.Two.Defects",
+   "Experation.Fixed",     
+#  "Altitude.Low.Meters",                  # All tend to have the same information. Only keeping Mean.
+#  "Altitude.High.Meters",                 # Same as ^^
+   "Altitude.Mean.Meters",
+   "Weight_Bags"
+)
+
+
+```
+```{r Principle Components Analysis,include = F,echo=F}
+if (run==TRUE) {
+pca_data <- data[,c(Predictors[[1]])]
+
+PCA_Results[[1]] <- PC_Analysis(pca_data,folder = "PCA",PCAName = "Nothing Excluded")
+exclude1 <- CorTest(df = pca_data,lmin = .1,lmax = .75,cf = .90,folder = "Plots",subfolder = "Correlation Tests")
+Predictors[[2]] <- colnames(pca_data[,-which(colnames(pca_data) %in% exclude1[[1]])])
+
+PCA_Results[[2]] <- PC_Analysis(pca_data,folder = "PCA",PCAName = "Excluding at CF = 0.90",exclude = exclude1[[2]])
+
+exclude2 <- CorTest(df = pca_data,lmin = .1,lmax = .75,cf = .95,folder = "Plots",subfolder = "Correlation Tests")
+Predictors[[3]] <- colnames(pca_data[,-which(colnames(pca_data) %in% exclude2[[1]])])
+
+PCA_Results[[3]] <- PC_Analysis(pca_data,folder = "PCA",PCAName = "Excluding at CF = 0.95",exclude = exclude2[[2]])
+
+names(PCA_Results) <- c(
+  "Nothing Excluded",
+  "Excluding at CF = 0.90",
+  "Excluding at CF = 0.95"
+)
+names(Predictors) <- c(
+  "All Variables",
+  "Excluding at CF = 0.90",
+  "Excluding at CF = 0.95"
+)
+}
+
+```
+
+# PCA Analysis
+
+For the first portion of the analaysis I ran 2 different iterations of PCA. Each iteration involved comparing the results with its scaled|unscaled and rotated | unrotated counterparts.
+
+1. No variables excluded
+
+As it is apparant. Unscaled PCA held the entire variability in PC1, This would create uninterpretable results. Fortunately, using scaled PCA allowed the variability to become more evenly spread out. More importantly, I was able to use the variance value of 1 as a breaking point for determining the number of components. 
+
+
+```{r pca1a, include = T}
+PCA_Results[[1]]$Plots$`Scree plot Scaled vs Unscaled`
+
+```
+    
+As expected, using all the variables resulted in difficult interpretations. The output of the PCA results are not included due to the size. But, below are the PCA charts reflecting unscaled vs scaled PCAs. The scaled results, surprisingly are harder to interpret than that of the unscaled. Looking closlely at the Unscaled PCA plots, it becomes apparant that Altitude, Weight, number of bags, and harvest length are strongly correlated. However, since these are unscaled, it could also be suggesting that these variable values are adding artificial weights to those variables. 
+
+```{r pca1b, include = T}
+plot_grid(
+PCA_Results[[1]]$Plots$`PCA Plot Unscaled - P1 and P2`,
+PCA_Results[[1]]$Plots$`PCA Plot Unscaled - P3 and P4`,
+
+PCA_Results[[1]]$Plots$`PCA Plot Scaled - P1 and P2`,
+PCA_Results[[1]]$Plots$`PCA Plot Scaled - P3 and P4`,
+ncol = 2,nrow = 2,align = "h", labels = c("Unscaled P1|P2","Unscaled P3|P4","Scaled P1|P2","Scaled P3|P4")
+)
+```
+
+
+2. Excluding at CF = 0.90
+      
+Using a correlation test with a confidence level of 90%, I was able to eliminate very high and very low correlated variables. From the original 29 numerical variables  reduced to only 4 variables. The results below represent scaled vs unscaled. The scree plots are drastically different from the first iteration. Using 4 variables adjust the variability among all the components. However, it is difficult to determine an actual elbow point since so many of the components have variances close to 1. The coefficients of the PCA results suggest that number of bags and altitude seem to move in tandem with one another. 
+      
+```{r pca2a, include = T}
+
+PCA_Results$`Excluding at CF = 0.90`$`PCA results`$`PrComp-Scaled`
+summary(PCA_Results$`Excluding at CF = 0.90`$`PCA results`$`PrComp-Scaled`)
+PCA_Results$`Excluding at CF = 0.90`$`PCA results`$`PrComp-notScaled`
+summary(PCA_Results$`Excluding at CF = 0.90`$`PCA results`$`PrComp-notScaled`)
+
+```
+      
+The results of the PCA plots reveal are more promising. THe PCA plots reveal that mean altitude, quakers and sweetness are all positivly correlated with each other. It seems to suggest that quakers in the coffee bean and altitude have a strong relationship with each other.  
+
+```{r pca2b, include = T}
+plot_grid(
+PCA_Results[[2]]$Plots$`PCA Plot Unscaled - P1 and P2`,
+PCA_Results[[2]]$Plots$`PCA Plot Unscaled - P3 and P4`,
+
+PCA_Results[[2]]$Plots$`PCA Plot Scaled - P1 and P2`,
+PCA_Results[[2]]$Plots$`PCA Plot Scaled - P3 and P4`,
+ncol = 2,nrow = 2,align = "h", labels = c("Unscaled P1|P2","Unscaled P3|P4","Scaled P1|P2","Scaled P3|P4")
+)
+```
+
+``` {r  iteration1 model building, include = F}
+
+if (run==TRUE) {
+df1 <- data
+
+iteration1 <- list()
+set.seed(123)
+iteration1[[1]] <- interation(
+  df = df1,
+  describe = "This is including all the predictors, with the exception of Altitude Low | High , Total Cupper Points and Latitude and Longitude. As discussed with the group, the coordinates were not accurate and may messy the results.",
+  response = response,
+  predictors = Predictors[[1]],
+  folder = "Models",
+  subfolder = "All Predictors")
+
+iteration1[[1]]$Regularization$lambda.1se$Results$`Train vs Test RMSE Results`
+
+iteration1[[1]]$Regularization$lambda.1se$Best$Coefficients
+iteration1[[1]]$Regularization$lambda.1se$Lasso$Coefficients
+iteration1[[1]]$Regularization$lambda.1se$Ridge$Coefficients
+iteration1[[1]]$Regularization$lambda.1se$Net$Coefficients
+
+summary(iteration1[[1]]$OLS$Linear$Model)
+summary(iteration1[[1]]$OLS$Backward$Model)
+summary(iteration1[[1]]$OLS$Forward$Model)
+}
+```
+``` {r iteration1 analysis,include = F}
+if (run==TRUE) {
+iteration1[[2]] <- list(
+  Regularization_Model_Analysis = list(
+    Overall = "The best model was produced with elasticNet using lambda at 1 SE with an alpha of 0.05. This produced the smalled RMSE error when compared to the test set. The difference between the training(0.2347) and test(0.2862) RMSE was small, nearly (.05), but it does suggest that the model was overfitting to the variables. The Training set has a calculated R2 that accounts for 63.66%  of the variability in Cupper Points. However, when compared to the test set the trained model was only able to account for 46.63% of the variability in Cupper Points. This, in addition to the increased RMSE between the training and test sets, suggests that despite Regularization, there is still some overfitting. Since elasticNet was used, it also served as a way for variable selection. It produced a sparser model, driving nearly half the beta weights to zero. That being said, those that are not zero are still REALLY small that could be interpreted as zero.",
+    Lasso = "Lasso produced the most parsimonious model with only 3 predictors. Just as Net at 0.50, the beta weights included are not trivially zero. Aftertaste, Flavor, and Balance appear to be some of the most important predictors",
+    Ridge = "Ridge does not give very interpretable results because all the variables have beta weights that are trivially zero.",
+    Net = "ElasticNet at 0.50 also produced a sparse model. Compared to that of alpha 0.05, the beta weights are not trivially zero. 5 distinct predictors standout - Aroma, Flavor, Aftertaste, Acidity, Body, and Balance",
+    important_variables = c("Aroma","Flavor","Aftertaste","Acidity","Body","Balance")
+    ),
+  Regularization_Residual_Analysis = list(
+    Overall = "Overall, the residuals did not yield good results. Very few elements displayed low degrees of heteroscedasticity, such as some of the date variables. There is a very obvious outlier that is apparant in all the charts with a standardized residual of -8. This is a very drastic deviation and may be strongly influencing the effects of the model.",
+    AgainstResponse = "Cupper Points Against Residuals, as expected, has a strong positive correlation with a few observations tailing off to the upper right corner suggesting some large overestimations. This may be an indication of some variables that are giving the model too much weight. ",
+    AgainstPredictors = "As expressed before, nearly all the elements were heteroscedastic, some of the predictors displayed positive correlations with the standardized residuals. This suggests that some of the predictions may be more or less accurate than one another. Making it very difficult to interpret relationships. "
+  ),
+
+  Linear_Model_Analysis = list(
+    Overall = "All three linear models produced terrible, overfit results. This is mainly due to the many levels in the categorical variables that can make the interpretations very difficult. ",
+    Linear = "The linear model with all the variables expectedly produced the worst model. Due to the many factor levels it is very difficult to differentiate between important and unimportant predictors",
+    Backward = "Model produced a majority of the betas to be statistically significant, however, it did so by removing some of the categorical country and regions. It has an F statistic less than alpha suggesting that at least one of the betas is not equal to zero. The adjusted R^2 is 74.65%. Respectable, but it does not help interpreting the relationships.",
+    Forward = "Backward and forward models produced the nearly the same model. The only difference was R^2 at 74.57%. ",
+    important_variables = "None"
+  ),
+  Linear_Residual_Analysis = list(
+    OVerall = "All the residuals appear to have a multiplicative process, that is, as actual values increase, so do the residuals. Additionally, all the plots display a high degree of heteroscadisticity. There may be a need to transform the variables or standardize the variables in order to correct the residual patterns",
+    QQplot = "The QQplot suggests that the residuals are not normal. The majority of the points lie above and below the QQ line. The deviations are most apparant at the tails",
+    histogram = "The histogram looks normal but with extreme tails on both ends. It depicts outliers exceeeding 5 SDs.",
+    AgainstResponse = "All the residuals against the response variable appear to have a curved relationship. Suggesting the need to transform the response variable",
+    AgainstPredictors = "All the residuals have a high degree of homoscedasticity with a multiplicative residual pattern. "
+  ),
+  
+  Intepretation = "",
+  important_variables = c("Aroma","Flavor","Aftertaste","Acidity","Body","Balance")
+)
+ 
+names(iteration1) <- c("Models | Residuals | Plots | Results","Analysis and Intepretation")    
+
+Predictors[[4]] <- iteration1$`Analysis and Intepretation`$important_variables
+
+model_iterations[[1]] <- iteration1
+
+iterationNames <- c("All Predictors")
+names(model_iterations) <- iterationNames
+
+iteration1$`Models | Residuals | Plots | Results`$Regularization$lambda.min$Results$`Best Model RMSE Results`
+
+}
+```
+``` {r  iteration2 model building, include = F}
+if (run==TRUE) {
+df2 <- data
+
+iteration2 <- list()
+set.seed(123)
+
+iteration2[[1]] <- interation(
+  df = df2,
+  describe = "This is only using the predictors that were not zero in the previous interation's regularization models. Variables are: Aroma,Flavor,Aftertaste,Acidity,Body,Balance",
+  response = response,
+  predictors = Predictors[[4]],
+  folder = "Models",
+  subfolder = "Using Regularization Variables"
+  )
+
+df2$residuals1 <- scale(iteration1[[1]]$OLS$Linear$Model$residuals,scale = T,center = T)
+df2$residuals2 <- scale(iteration2[[1]]$OLS$Linear$Model$residuals,scale = T,center = T)
+
+
+iteration2[[1]]$Regularization$lambda.1se$Best$Coefficients
+iteration2[[1]]$Regularization$lambda.1se$Lasso$Coefficients
+iteration2[[1]]$Regularization$lambda.1se$Ridge$Coefficients
+iteration2[[1]]$Regularization$lambda.1se$Net$Coefficients
+
+iteration2[[1]]$Regularization$lambda.min$Best$Coefficients
+iteration2[[1]]$Regularization$lambda.min$Lasso$Coefficients
+iteration2[[1]]$Regularization$lambda.min$Ridge$Coefficients
+iteration2[[1]]$Regularization$lambda.min$Net$Coefficients
+
+summary(iteration2[[1]]$OLS$Linear$Model)
+summary(iteration2[[1]]$OLS$Backward$Model)
+summary(iteration2[[1]]$OLS$Forward$Model)
+}
+```
+``` {r iteration2 analysis,include = F}
+if (run ==TRUE) {
+iteration2[[2]] <- list(
+  Regularization_Model_Analysis = list(
+    Overall = "",
+    Lasso = "",
+    Ridge = "",
+    Net = "",
+    important_variables = c()
+    ),
+  Regularization_Residual_Analysis = list(
+    Overall = "",
+    AgainstResponse = "",
+    AgainstPredictors = ""
+  ),
+
+  Linear_Model_Analysis = list(
+    Overall = "",
+    Linear = "",
+    Backward = "",
+    Forward = "",
+    important_variables = ""
+  ),
+  Linear_Residual_Analysis = list(
+    OVerall = "",
+    QQplot = "",
+    histogram = "",
+    AgainstResponse = "",
+    AgainstPredictors = ""
+  ),
+  
+  Intepretation = "",
+  important_variables = c("Aroma","Flavor","Aftertaste","Acidity","Body","Balance")
+)
+
+names(iteration2) <- c("Models | Residuals | Plots | Results","Analysis and Intepretation")    
+    
+model_iterations[[2]] <- iteration2
+names(model_iterations) <- c(iterationNames,"Only using Regularization Variables")
+}
+# saveRDS(model_iterations, file = "Models.rds",compress = T)
+
+```
+
+# Regularization and Linear Models
+
+When building the regularization models I decided to still run OLS in tandem to compare the results. In this case, I made two iterations of models. The difficulty to determine which model performed better was due to making comparable results. Especially when it comes to regularization. Thus, I decided to do each iteration by creating appropriate ridge,lasso, net as well as its different blend levels. In order to accomplish this, I seperated the data into training and test sets (80/20 split), then I built the model using the training data and tested with the test data. Comparing the RMSE results.  This was done for both lambda.min and lambda.1se.  Subsequently, OLS models were created as well including forward and backward automatic variable selection for comparisons. 
+  
+1. All Predictors
+
+  Overall, The best model was produced with elasticNet using lambda at 1 SE with an alpha of 0.05. This produced the smalled RMSE error when compared to the test set. The difference between the training(0.2347) and test(0.2862) RMSE was small, nearly (.05), but it does suggest that the model was overfitting to the variables. The Training set has a calculated R2 that accounts for 63.66%  of the variability in Cupper Points. However, when compared to the test set the trained model was only able to account for 46.63% of the variability in Cupper Points. This, in addition to the increased RMSE between the training and test sets, suggests that despite Regularization, there is still some overfitting. Since elasticNet was used, it also served as a way for variable selection. It produced a sparser model, driving nearly half the beta weights to zero. That being said, those that are not zero are still REALLY small that could be interpreted as zero.",
+    
+  Lasso produced the most parsimonious model with only 3 predictors. Just as Net at 0.50, the beta weights included are not trivially zero. Aftertaste, Flavor, and Balance appear to be some of the most important predictors. Ridge does not give very interpretable results because all the variables have beta weights that are trivially zero. ElasticNet at 0.50 also produced a sparse model. Compared to that of alpha 0.05, the beta weights are not trivially zero. 5 distinct predictors standout - Aroma, Flavor, Aftertaste, Acidity, Body, and Balance"
+    
+  Residual analysis did not yield good results. Very few elements displayed low degrees of heteroscedasticity, such as some of the date variables. There is a very obvious outlier that is apparant in all the charts with a standardized residual of -8. This is a very drastic deviation and may be strongly influencing the effects of the model. Residuals against the response = "Cupper Points Against Residuals, as expected, has a strong positive correlation with a few observations tailing off to the upper right corner suggesting some large overestimations. This may be an indication of some variables that are giving the model too much weight. Residuals against the predictors as expressed before, nearly all the elements were heteroscedastic, some of the predictors displayed positive correlations with the standardized residuals. This suggests that some of the predictions may be more or less accurate than one another. Making it very difficult to interpret relationships.
+
+  Linear models overall all three linear models produced terrible, overfit results. This is mainly due to the many levels in the categorical variables that can make the interpretations very difficult. The linear model with all the variables expectedly produced the worst model. Due to the many factor levels it is very difficult to differentiate between important and unimportant predictors". The backwards model produced a majority of the betas to be statistically significant, however, it did so by removing some of the categorical country and regions. It has an F statistic less than alpha suggesting that at least one of the betas is not equal to zero. The adjusted R^2 is 74.65%. Respectable, but it does not help interpreting the relationships. All the residuals appear to have a multiplicative process, that is, as actual values increase, so do the residuals. Additionally, all the plots display a high degree of heteroscadisticity. There may be a need to transform the variables or standardize the variables in order to correct the residual patterns. The QQplot suggests that the residuals are not normal. The majority of the points lie above and below the QQ line. The deviations are most apparant at the tails. The histogram looks normal but with extreme tails on both ends. It depicts outliers exceeeding 5 SDs. Residuals against the response appear to have a curved relationship. Suggesting the need to transform the response variable. All the residuals have a high degree of homoscedasticity with a multiplicative residual pattern.
+
+
+# Next Steps
+
+The next steps in this analysis would be to take the variables that were deemed important from the regularization models and create another iteration using those variables. Subsequently, I would then build multiple models using the predictors found important from the PCA analysis. Finally, I will attempt to use the PCA scores with the regularization models built. 
+
+
+
+
+

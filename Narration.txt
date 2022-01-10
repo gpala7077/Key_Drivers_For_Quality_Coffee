@@ -1,0 +1,28 @@
+Slide 1:
+Regularized regression was performed on two sets of data, The original data frame and the recasted scores from the PCA analysis. 
+
+In addition to cross-validation, the data was split into training and test datasets in order to compare the root mean squared error and determine the best model that minimizes the diagnostic. The differences in the errors between the training and test sets is small suggesting that the data may have a low degree of overfitting. 
+
+Both the original data and the scores performed best using elasticNet but at different levels of alpha and lambda.     
+
+The variance captured was high in both sets, suggesting a strong goodness of fit. 
+But it wasn't without feature selection and residual analysis. 
+
+Slide 2:
+
+Feature selection was done using elasticNet, Lasso , OLS p-value and AIC stepwise regression. The most common variables between all the feature selection methods were then used to reduce potential noise when testing different iterations.  Below are the two final models next to their initial set.
+
+In the far left, the regression model with all the original predictors resulted with many of the estimated betas pulled to zero.  One of the reasons for this may be due to the high multicollinearity in the predictors and within the factor levels of the categorical variables. 
+
+Another notable aspect of the initial models are the influential residual outliers. 15 to 16 outliers were consistently identified between different testing iterations. When removed, the residuals became more normal and the calculated R^2 improved. 
+
+The original dataset identified 5 significant variables that best explained the variance in the response. Unfortunalty, it did so by eliminating nearly all the predictors. Looking to the right, the recasted data is identical to the original but it does so without eliminating as many predictors while also maintaining a high r^2. 
+
+
+Slide 3:
+
+When compared to their OLS counterparts, the multicollinearity is best exemplified by the model with all the predictors. Here, the R^2 is high at 79% but in regularization, it was 55%. The fitted values against the residuals with the original data have obvious outliers exceeding 6 standard deviations and outliers exceeding 10 standard deviations in the recasted data. After removing those outliers, the residuals become homoscedastic. 
+
+An interesting observation from the regularized regression is that nearly all the significant variables in the linear model also happen to be the same variables that RC1 is composed of.  This may add further evidence that these variables are significant to predicting the response. 
+
+

@@ -1,0 +1,7 @@
+"x"
+"1" "flavor"
+"2" "aftertaste"
+"3" "acidity"
+"4" "body"
+"5" "balance"
+"6" "avgAltitude"

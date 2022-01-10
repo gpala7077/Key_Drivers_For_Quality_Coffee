@@ -1,0 +1,40 @@
+---
+title: "Milestone 4 - Individual Progress on Analysis"
+author: "Gerardo Palacios"
+date: "2/23/2020"
+output: pdf_document
+---
+```{r setup,include = F}
+setwd('C:/Users/Gerardo/OneDrive/DePaul/Advanced Data Anlaysis/Group Project/')   # Set working folder
+
+```
+# Summary
+To reiterate the group discussions, we decided on two main approaches, PCA/CFA and regularized regression analysis in order to predict cupper points and the probability of the type of processing the coffee beans received. Part of the main issues on interpreting the predictors is that of dimensionality, differences in predictor values, and high multicollinearity. In order to extrapolate latent factors and to produce a sparser model, my portion of the analysis is to conduct PCA and ElasticNet regression. These two, in addition to creating associated plots for every model iteration, would assist into a holistic analysis when the group brings together all the avenues of analysis. 
+
+# Initial PCA Analysis
+For the first portion of the analaysis I ran 3 different iterations of PCA. Each iteration involved comparing the results with its scaled|unscaled and rotated | unrotated counterparts.
+
+1. No variables excluded
+
+```{r PCA 1,include=TRUE,eval=TRUE}
+attach(pca1)
+```
+Individual report: Each team member will submit a 1-2 page summary of their work on the
+project to be included as an appendix to the main document. This should detail what role they
+played as a part of the team and what specific analyses or visualizations they performed and
+what conclusions could be drawn from your analysis. Your individual summary must show the
+breadth and depth of what you worked on during the quarter, and you will be graded on your
+individual contribution.
+
+Each group member will submit a summary of their work on one or more of the main analyses for the project, or an exploratory on a possible third direction.  This work does not need to be worked on in isolation, but each person in the group should contribute materially to the effort and your write-up should be able evidence of this. Each person's summary should consist of at least two pages (including output and graphs from software), and should clearly cover the following
+
+1) Which analysis you are working towards
+
+2) Who you collaborated on in this work in the group
+
+3) What specific data manipulations (cleaning, reformatting, merging, etc.), analyses, visualizations you worked on
+
+4) What the results were, including code snippets, brief output, visualizations
+
+5) Suggestions for next steps in the analysis
+
